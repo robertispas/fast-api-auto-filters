@@ -16,9 +16,11 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=25.1.0",
+    "httpx>=0.28.1",
     "isort>=6.0.1",
     "pre-commit>=4.2.0",
     "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
     "ruff>=0.12.7",
 ]
 
@@ -52,3 +54,9 @@ exclude = [
 ]
 
 pydocstyle.convention = "google"
+
+[tool.ruff.per-file-ignores]
+# Ignore all directories named `tests`.
+"tests/**" = ["D"]
+# Ignore all files that end in `_test.py`.
+"*_test.py" = ["D"]

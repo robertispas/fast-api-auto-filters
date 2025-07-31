@@ -3,22 +3,24 @@
 import datetime as dt
 import inspect
 from operator import ge, gt, le, lt, ne
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field, create_model
-from sqlalchemy import BinaryExpression
+from sqlalchemy import BinaryExpression, Boolean
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm.exc import UnmappedClassError
 from sqlmodel import SQLModel
 
 from fastapi import Query
 
-ModelType = Type[BaseModel | SQLModel]
+ModelType = Type[SQLModel]
 
 
 def make_filter_model(
     base_model: ModelType,
     exclude_from_filters: list[str] = None,
 ) -> Type[BaseModel]:
-    """Create a filter model from a Pydantic or SQLModel model.
+    """Create a filter model from a SQLModel model.
 
     For each column in the base model, generate optional query-param fields for
     eq, gt, gte, lt, lte, ne, like, ilike, and in.
@@ -35,9 +37,9 @@ def make_filter_model(
         "gte": (int, float, dt.date, dt.datetime),
         "lt": (int, float, dt.date, dt.datetime),
         "lte": (int, float, dt.date, dt.datetime),
-        "ne": (int, float, str, dt.date, dt.datetime),
-        "like": (str,),
-        "ilike": (str,),
+        "ne": (bool, int, float, str, dt.date, dt.datetime),
+        "like": str,
+        "ilike": str,
         "in": (int, float, str, dt.date, dt.datetime),
     }
 
@@ -45,18 +47,18 @@ def make_filter_model(
 
     fields: Dict[str, Tuple[Any, Any]] = {}
 
-    for col in base_model.__table__.columns:
-        if col.name not in exclude:
+    for col_name, col in base_model.model_fields.items():
+        if col_name not in exclude:
             try:
-                py_type = col.type.python_type
+                py_type = col.annotation
             except NotImplementedError:
                 py_type = str
 
-            fields[col.name] = Optional[py_type]
+            fields[col_name] = Optional[py_type]
 
             for suffix, types in comps.items():
                 if issubclass(py_type, types):
-                    name = f"{col.name}__{suffix}"
+                    name = f"{col_name}__{suffix}"
                     if suffix == "in":
                         fields[name] = Optional[List[py_type]]
                     else:
@@ -91,7 +93,16 @@ def get_filters_from_model(filters: BaseModel, base_model: ModelType) -> list[Bi
 
     Returns:
         A list of SQLAlchemy BinaryExpression objects ready to be applied.
+
+    Raises:
+        TypeError: If `base_model` is not a SQLAlchemy-mapped class.
+        ValueError: If an unsupported operation is encountered.
     """
+    try:
+        sa_inspect(base_model)
+    except UnmappedClassError:
+        raise TypeError(f"{base_model!r} is not a SQLAlchemy‐mapped class")
+
     parsed_filters = []
 
     for param, value in filters.model_dump(exclude_none=True).items():
@@ -106,8 +117,18 @@ def get_filters_from_model(filters: BaseModel, base_model: ModelType) -> list[Bi
             field, op = param, "eq"
         col = getattr(base_model, field)
 
+        if isinstance(col.type, Boolean):
+            if op == "eq":
+                op = "is"
+            elif op == "ne":
+                op = "is_not"
+
         if op == "eq":
             parsed_filters.append(col == value)
+        elif op == "is":
+            parsed_filters.append(col.is_(value))
+        elif op == "is_not":
+            parsed_filters.append(col.is_not(value))
         elif op in OP_MAP:
             parsed_filters.append(OP_MAP[op](col, value))
         elif op in ("like", "ilike"):
@@ -147,10 +168,17 @@ def create_filters(
     # Build a list of inspect.Parameters
     params: list[inspect.Parameter] = []
     for name, field in filter_model.model_fields.items():
-        ann = field.outer_type_
-        # Handle list types
-        if name.endswith("__in") and getattr(ann, "__origin__", None) is not list:
-            ann = List[ann]
+        # Grab the “real” type: prefer outer_type_ (ModelField), fallback to annotation (FieldInfo)
+        if hasattr(field, "outer_type_"):
+            ann = field.outer_type_
+        else:
+            ann = field.annotation
+
+        # If it’s Optional[X], unwrap to X
+        origin = get_origin(ann)
+        args = get_args(ann)
+        if origin is Union and type(None) in args:
+            ann = next(a for a in args if a is not type(None))
 
         param = inspect.Parameter(
             name=name,
