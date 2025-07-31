@@ -1,0 +1,81 @@
+# Python .gitignore for fast-api-auto-filters project
+
+# Byte-compiled / optimized / DLL files
+
+**pycache**/
+\*.py\[cod]
+\*\$py.class
+
+# C extensions
+
+\*.so
+
+# Distribution / packaging
+
+.build/
+build/
+dist/
+\*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# Installer logs
+
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.\*
+.cache
+.pytest\_cache/
+
+# Documentation
+
+docs/\_build/
+
+# Jupyter Notebook
+
+.ipynb\_checkpoints
+
+# Environment variables file
+
+.env
+
+# VSCode settings
+
+.vscode/
+
+# IDE/project settings
+
+.idea/
+
+# Mypy
+
+.mypy\_cache/
+
+# Ruff cache
+
+.ruff\_cache/
+
+# Pre-commit
+
+.pre-commit-config.yaml
+
+# Tox
+
+.tox/
+
+# Misc
+
+\*.log

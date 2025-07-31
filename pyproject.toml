@@ -1,0 +1,54 @@
+[project]
+name = "fastapi-auto-filters"
+version = "0.1.0"
+description = "A tool for adding automatic filters to FastAPI endpoints."
+authors = [
+    { name = "Robert Ispas", email = "me@robertispas.com" },
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.1",
+    "sqlalchemy>=2.0.42",
+    "sqlmodel>=0.0.24",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+    "ruff>=0.12.7",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+
+line-length = 110
+
+# Which error codes to check (E = pycodestyle, F = pyflakes, I = isort, etc).
+# "select" is default; you can narrow if you dislike certain rules.
+select = ["E", "F", "I", "D", "YTT"]  # e.g. D for docstrings, YTT for typestubs
+
+# If there are any rules you want to turn OFF project-wide:
+ignore = [
+  "E203",       # whitespace before ':' (Black conflicts)
+]
+
+exclude = [
+  ".git",
+  "__pycache__",
+  "build",
+  "dist",
+  ".venv",
+]
+
+pydocstyle.convention = "google"
